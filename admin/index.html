@@ -297,8 +297,48 @@
             return (amount / 1e6).toFixed(2);
         }
 
-        // 初期化実行
-        init();
+// DOM読み込み完了後に初期化とイベントリスナーを設定
+        document.addEventListener('DOMContentLoaded', () => {
+            // ウォレット接続ボタンにクリックイベントを追加
+            const connectButton = document.getElementById('connectWallet');
+            connectButton.addEventListener('click', () => {
+                console.log('Connect button clicked'); // デバッグ用ログ
+                connectWallet();
+            });
+            
+            // 初期化実行
+            init();
+            console.log('Initialization completed'); // デバッグ用ログ
+        });
+
+        // デバッグ用のログを追加したconnectWallet関数
+        async function connectWallet() {
+            console.log('connectWallet function started'); // デバッグ用ログ
+            try {
+                const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                console.log('Connected accounts:', accounts); // デバッグ用ログ
+                currentAccount = accounts[0];
+                
+                // オーナー確認
+                const owner = await contract.methods.owner().call();
+                console.log('Contract owner:', owner); // デバッグ用ログ
+                isOwner = owner.toLowerCase() === currentAccount.toLowerCase();
+
+                // UI更新
+                document.getElementById('walletInfo').textContent = 
+                    `接続中: ${currentAccount.substring(0,6)}...${currentAccount.substring(38)} ${isOwner ? '(オーナー)' : ''}`;
+                
+                if (isOwner) {
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                    await refreshStats();
+                } else {
+                    alert('このアドレスには管理者権限がありません');
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                alert('ウォレット接続に失敗しました: ' + error.message);
+            }
+        }
     </script>
 </body>
 </html>
