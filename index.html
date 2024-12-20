@@ -101,36 +101,21 @@
         <div id="withdrawStatus"></div>
     </div>
 
-<script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js" 
-        type="application/javascript">
-</script>
+    <!-- Web3.js を読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
     <script>
         // Configuration
         const contractAddress = "0x9cf81A1814D452D4f5308aA38D128ce5CAADdDE4";
         const contractABI = [
     {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "_usdcTokenAddress",
-                "type": "address"
-            }
-        ],
+        "inputs": [{"internalType": "address","name": "_usdcTokenAddress","type": "address"}],
         "stateMutability": "nonpayable",
         "type": "constructor"
     },
     {
         "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            },
-            {
-                "internalType": "uint256",
-                "name": "referralCode",
-                "type": "uint256"
-            }
+            {"internalType": "uint256","name": "amount","type": "uint256"},
+            {"internalType": "uint256","name": "referralCode","type": "uint256"}
         ],
         "name": "depositFunds",
         "outputs": [],
@@ -138,13 +123,7 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
+        "inputs": [{"internalType": "uint256","name": "amount","type": "uint256"}],
         "name": "requestWithdrawal",
         "outputs": [],
         "stateMutability": "nonpayable",
@@ -160,13 +139,7 @@
     {
         "inputs": [],
         "name": "generateReferralCode",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
+        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
         "stateMutability": "nonpayable",
         "type": "function"
     },
@@ -192,330 +165,184 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "userAddress",
-                "type": "address"
-            }
-        ],
+        "inputs": [{"internalType": "address","name": "userAddress","type": "address"}],
         "name": "calculateReward",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
+        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
         "stateMutability": "view",
         "type": "function"
     },
     {
         "inputs": [],
         "name": "currentAPR",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
+        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
         "stateMutability": "view",
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
+        "inputs": [{"internalType": "address","name": "","type": "address"}],
         "name": "deposits",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
+        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
         "stateMutability": "view",
         "type": "function"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "user",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "Deposit",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "user",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "Withdrawal",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "newAPR",
-                "type": "uint256"
-            }
-        ],
-        "name": "APRUpdated",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "user",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint256",
-                "name": "referralCode",
-                "type": "uint256"
-            }
-        ],
-        "name": "ReferralCodeCreated",
-        "type": "event"
     }
 ];
-        
-let provider;
-let signer;
-let contract;
-let userAddress;
 
-    // ここに新しいコードを追加（DOMContentLoadedイベントリスナー）
-    window.addEventListener('DOMContentLoaded', async () => {
-        // ethers.jsが読み込まれているか確認
-        if (typeof ethers === 'undefined') {
-            console.error('ethers.js ライブラリが読み込まれていません');
-            document.getElementById('walletStatus').innerHTML = 
-                '<p class="error">ethers.js ライブラリの読み込みに失敗しました</p>';
-            return;
+        // グローバル変数
+        let web3;
+        let contract;
+        let currentAccount;
+
+        // 初期化関数
+        async function init() {
+            console.log('Initializing...'); // デバッグログ
+            
+            if (typeof window.ethereum !== 'undefined') {
+                // Web3インスタンスを作成
+                web3 = new Web3(window.ethereum);
+                contract = new web3.eth.Contract(contractABI, contractAddress);
+
+                // MetaMaskのアカウント変更監視
+                window.ethereum.on('accountsChanged', function (accounts) {
+                    console.log('Account changed, reloading...');
+                    window.location.reload();
+                });
+
+                // チェーン変更監視
+                window.ethereum.on('chainChanged', function (chainId) {
+                    console.log('Network changed, reloading...');
+                    window.location.reload();
+                });
+
+                // 接続済みの場合は自動接続
+                const accounts = await web3.eth.getAccounts();
+                if (accounts.length > 0) {
+                    currentAccount = accounts[0];
+                    await connectWallet();
+                }
+            } else {
+                document.getElementById('walletStatus').innerHTML = 
+                    '<p class="error">MetaMaskをインストールしてください</p>';
+            }
         }
 
-        const connectWalletBtn = document.getElementById('connectWallet');
-        if (connectWalletBtn) {
-            connectWalletBtn.addEventListener('click', async () => {
-                console.log("Connect wallet button clicked");
-                await initializeWeb3();
-            });
-        }
-    });
+        // ウォレット接続
+        async function connectWallet() {
+            try {
+                const accounts = await window.ethereum.request({ 
+                    method: 'eth_requestAccounts' 
+                });
+                
+                currentAccount = accounts[0];
+                console.log('Connected to account:', currentAccount);
 
-// Initialize Web3 and Contract
-async function initializeWeb3() {
-    try {
-        console.log("Initializing Web3..."); // デバッグログ
+                document.getElementById('walletStatus').innerHTML = 
+                    `<p class="success">接続成功: ${currentAccount.substring(0,6)}...${currentAccount.substring(38)}</p>`;
 
-        // MetaMaskが利用可能かチェック
-        if (typeof window.ethereum === 'undefined') {
-            document.getElementById('walletStatus').innerHTML = 
-                '<p class="error">MetaMaskをインストールしてください</p>';
-            return;
-        }
-
-        // MetaMaskのプロバイダーを取得
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        
-        // ウォレット接続を要求
-        console.log("Requesting accounts..."); // デバッグログ
-        const accounts = await window.ethereum.request({ 
-            method: 'eth_requestAccounts' 
-        });
-        
-        if (!accounts || accounts.length === 0) {
-            throw new Error('ウォレットに接続できませんでした');
+                await updateUI();
+                setupEventListeners();
+            } catch (error) {
+                console.error('Connection error:', error);
+                document.getElementById('walletStatus').innerHTML = 
+                    `<p class="error">接続エラー: ${error.message}</p>`;
+            }
         }
 
-        signer = provider.getSigner();
-        userAddress = await signer.getAddress();
-        console.log("Connected address:", userAddress); // デバッグログ
-
-        // コントラクトのインスタンス化
-        contract = new ethers.Contract(contractAddress, contractABI, signer);
-        
-        // 接続成功のメッセージを表示
-        document.getElementById('walletStatus').innerHTML = 
-            `<p class="success">接続成功: ${userAddress.substring(0,6)}...${userAddress.substring(38)}</p>`;
-        
-        // UI更新とイベントリスナーの設定
-        await updateUI();
-        setupEventListeners();
-
-        // MetaMaskのアカウント変更イベントをリッスン
-        window.ethereum.on('accountsChanged', function (accounts) {
-            console.log("Account changed, reloading..."); // デバッグログ
-            window.location.reload();
-        });
-
-        // チェーン変更イベントをリッスン
-        window.ethereum.on('chainChanged', function (chainId) {
-            console.log("Network changed, reloading..."); // デバッグログ
-            window.location.reload();
-        });
-
-    } catch (error) {
-        console.error('Connection error:', error); // デバッグログ
-        document.getElementById('walletStatus').innerHTML = 
-            `<p class="error">接続エラー: ${error.message}</p>`;
-    }
-}
-
-        // UI Update Functions
+        // UI更新関数
         async function updateUI() {
-            await updateBalance();
-            await updateAPR();
-            await updateReferralCode();
+            try {
+                await Promise.all([
+                    updateBalance(),
+                    updateAPR(),
+                    updateReferralCode()
+                ]);
+            } catch (error) {
+                console.error('Error updating UI:', error);
+            }
         }
 
+        // 残高更新
         async function updateBalance() {
             try {
-                const balance = await contract.balanceOf(userAddress);
+                const balance = await contract.methods.deposits(currentAccount).call();
                 document.getElementById('userBalance').textContent = 
-                    ethers.utils.formatUnits(balance, 6);
+                    web3.utils.fromWei(balance, 'ether');
             } catch (error) {
                 console.error("Error updating balance:", error);
             }
         }
 
+        // APR更新
         async function updateAPR() {
             try {
-                const apr = await contract.getCurrentAPR();
+                const apr = await contract.methods.currentAPR().call();
                 document.getElementById('currentAPR').textContent = 
-                    ethers.utils.formatUnits(apr, 2);
+                    web3.utils.fromWei(apr, 'ether');
             } catch (error) {
                 console.error("Error updating APR:", error);
             }
         }
 
+        // リファラルコード更新
         async function updateReferralCode() {
             try {
-                const code = await getReferralCode();
+                const code = await contract.methods.generateReferralCode().call({
+                    from: currentAccount
+                });
                 document.getElementById('referralCode').textContent = code;
             } catch (error) {
                 console.error("Error updating referral code:", error);
             }
         }
 
-        // Contract Interaction Functions
+        // デポジット実行
         async function depositFunds(amount, referralCode) {
             try {
-                const tx = await contract.depositFunds(
-                    ethers.utils.parseUnits(amount.toString(), 6),
-                    referralCode
-                );
+                const amountWei = web3.utils.toWei(amount.toString(), 'ether');
+                await contract.methods.depositFunds(amountWei, referralCode)
+                    .send({ from: currentAccount });
+                
                 document.getElementById('depositStatus').innerHTML = 
-                    '<p class="success">Transaction submitted. Waiting for confirmation...</p>';
-                await tx.wait();
-                document.getElementById('depositStatus').innerHTML = 
-                    '<p class="success">Deposit successful!</p>';
+                    '<p class="success">入金が完了しました</p>';
                 await updateUI();
             } catch (error) {
                 document.getElementById('depositStatus').innerHTML = 
-                    `<p class="error">Deposit failed: ${error.message}</p>`;
+                    `<p class="error">入金に失敗しました: ${error.message}</p>`;
             }
         }
 
+        // 引き出しリクエスト
         async function requestWithdrawal(amount) {
             try {
-                const tx = await contract.requestWithdrawal(
-                    ethers.utils.parseUnits(amount.toString(), 6)
-                );
+                const amountWei = web3.utils.toWei(amount.toString(), 'ether');
+                await contract.methods.requestWithdrawal(amountWei)
+                    .send({ from: currentAccount });
+                
                 document.getElementById('withdrawStatus').innerHTML = 
-                    '<p class="success">Withdrawal request submitted. Waiting for confirmation...</p>';
-                await tx.wait();
-                document.getElementById('withdrawStatus').innerHTML = 
-                    '<p class="success">Withdrawal request successful!</p>';
+                    '<p class="success">引き出しリクエストが完了しました</p>';
                 await updateUI();
             } catch (error) {
                 document.getElementById('withdrawStatus').innerHTML = 
-                    `<p class="error">Withdrawal request failed: ${error.message}</p>`;
+                    `<p class="error">引き出しリクエストに失敗しました: ${error.message}</p>`;
             }
         }
 
+        // 引き出し実行
         async function withdraw() {
             try {
-                const tx = await contract.withdraw();
+                await contract.methods.withdraw()
+                    .send({ from: currentAccount });
+                
                 document.getElementById('withdrawStatus').innerHTML = 
-                    '<p class="success">Withdrawal submitted. Waiting for confirmation...</p>';
-                await tx.wait();
-                document.getElementById('withdrawStatus').innerHTML = 
-                    '<p class="success">Withdrawal successful!</p>';
+                    '<p class="success">引き出しが完了しました</p>';
                 await updateUI();
             } catch (error) {
                 document.getElementById('withdrawStatus').innerHTML = 
-                    `<p class="error">Withdrawal failed: ${error.message}</p>`;
+                    `<p class="error">引き出しに失敗しました: ${error.message}</p>`;
             }
         }
 
-        async function getReferralCode() {
-            try {
-                const code = await contract.getReferralCode();
-                return code.toString();
-            } catch (error) {
-                console.error("Error getting referral code:", error);
-                return "-";
-            }
-        }
-
-        // Event Listeners Setup
+        // イベントリスナー設定
         function setupEventListeners() {
-            // Contract Events
-            contract.on("Deposit", async (user, amount, event) => {
-                if (user === userAddress) {
-                    await updateUI();
-                }
-            });
-
-            contract.on("Withdrawal", async (user, amount, event) => {
-                if (user === userAddress) {
-                    await updateUI();
-                }
-            });
-
-            contract.on("APRUpdated", async (newAPR, event) => {
-                await updateAPR();
-            });
-
-            // UI Button Events
-            document.getElementById('connectWallet').addEventListener('click', initializeWeb3);
-
             document.getElementById('depositButton').addEventListener('click', async () => {
                 const amount = document.getElementById('depositAmount').value;
                 const referralCode = document.getElementById('referralCodeInput').value;
@@ -537,24 +364,17 @@ async function initializeWeb3() {
                 const code = document.getElementById('referralCode').textContent;
                 if (code !== "-") {
                     await navigator.clipboard.writeText(code);
-                    alert("Referral code copied to clipboard!");
+                    alert("リファラルコードをクリップボードにコピーしました");
                 }
             });
         }
 
-        // Initialize on page load
-window.addEventListener('DOMContentLoaded', () => {
-    const connectWalletBtn = document.getElementById('connectWallet');
-    if (connectWalletBtn) {
-        // 初期接続試行
-        connectWalletBtn.addEventListener('click', async () => {
-            console.log("Connect wallet button clicked"); // デバッグログ
-            await initializeWeb3();
+        // 初期化実行
+        document.addEventListener('DOMContentLoaded', () => {
+            const connectButton = document.getElementById('connectWallet');
+            connectButton.addEventListener('click', connectWallet);
+            init();
         });
-        // 自動接続を試みる
-        initializeWeb3().catch(console.error);
-    }
-});
     </script>
 </body>
 </html>
