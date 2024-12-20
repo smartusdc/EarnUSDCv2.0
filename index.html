@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeFi Platform</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button:disabled {
+            background-color: #cccccc;
+        }
+        .error {
+            color: red;
+            margin-top: 5px;
+        }
+        .success {
+            color: green;
+            margin-top: 5px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .input-group input {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>DeFi Platform</h1>
+    
+    <!-- Wallet Connection -->
+    <div class="container">
+        <button id="connectWallet" class="button">Connect Wallet</button>
+        <div id="walletStatus"></div>
+    </div>
+
+    <!-- Account Information -->
+    <div class="container">
+        <h2>Account Information</h2>
+        <p>Balance: <span id="userBalance">0</span> USDC</p>
+        <p>Current APR: <span id="currentAPR">0</span>%</p>
+    </div>
+
+    <!-- Referral Code Section -->
+    <div class="container">
+        <h2>Referral Code</h2>
+        <p>Your Referral Code: <span id="referralCode">-</span></p>
+        <button id="copyReferralCode" class="button">Copy Referral Code</button>
+    </div>
+
+    <!-- Deposit Section -->
+    <div class="container">
+        <h2>Deposit</h2>
+        <div class="input-group">
+            <label for="depositAmount">Amount (USDC):</label>
+            <input type="number" id="depositAmount" min="0" step="0.000001">
+        </div>
+        <div class="input-group">
+            <label for="referralCodeInput">Referral Code (optional):</label>
+            <input type="text" id="referralCodeInput">
+        </div>
+        <button id="depositButton" class="button">Deposit</button>
+        <div id="depositStatus"></div>
+    </div>
+
+    <!-- Withdrawal Section -->
+    <div class="container">
+        <h2>Withdraw</h2>
+        <div class="input-group">
+            <label for="withdrawAmount">Amount (USDC):</label>
+            <input type="number" id="withdrawAmount" min="0" step="0.000001">
+        </div>
+        <button id="requestWithdrawButton" class="button">Request Withdrawal</button>
+        <button id="withdrawButton" class="button">Execute Withdrawal</button>
+        <div id="withdrawStatus"></div>
+    </div>
+
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <script>
+        // Configuration
+        const contractAddress = "YOUR_CONTRACT_ADDRESS";
+        const contractABI = []; // Add your contract ABI here
+        
+        let provider;
+        let signer;
+        let contract;
+        let userAddress;
+
+        // Initialize Web3 and Contract
+        async function initializeWeb3() {
+            if (typeof window.ethereum !== 'undefined') {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                try {
+                    await provider.send("eth_requestAccounts", []);
+                    signer = provider.getSigner();
+                    userAddress = await signer.getAddress();
+                    contract = new ethers.Contract(contractAddress, contractABI, signer);
+                    
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<p class="success">Connected: ${userAddress.substring(0,6)}...${userAddress.substring(38)}</p>`;
+                    
+                    // Initialize UI
+                    await updateUI();
+                    setupEventListeners();
+                } catch (error) {
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<p class="error">Connection failed: ${error.message}</p>`;
+                }
+            } else {
+                document.getElementById('walletStatus').innerHTML = 
+                    '<p class="error">Please install MetaMask</p>';
+            }
+        }
+
+        // UI Update Functions
+        async function updateUI() {
+            await updateBalance();
+            await updateAPR();
+            await updateReferralCode();
+        }
+
+        async function updateBalance() {
+            try {
+                const balance = await contract.balanceOf(userAddress);
+                document.getElementById('userBalance').textContent = 
+                    ethers.utils.formatUnits(balance, 6);
+            } catch (error) {
+                console.error("Error updating balance:", error);
+            }
+        }
+
+        async function updateAPR() {
+            try {
+                const apr = await contract.getCurrentAPR();
+                document.getElementById('currentAPR').textContent = 
+                    ethers.utils.formatUnits(apr, 2);
+            } catch (error) {
+                console.error("Error updating APR:", error);
+            }
+        }
+
+        async function updateReferralCode() {
+            try {
+                const code = await getReferralCode();
+                document.getElementById('referralCode').textContent = code;
+            } catch (error) {
+                console.error("Error updating referral code:", error);
+            }
+        }
+
+        // Contract Interaction Functions
+        async function depositFunds(amount, referralCode) {
+            try {
+                const tx = await contract.depositFunds(
+                    ethers.utils.parseUnits(amount.toString(), 6),
+                    referralCode
+                );
+                document.getElementById('depositStatus').innerHTML = 
+                    '<p class="success">Transaction submitted. Waiting for confirmation...</p>';
+                await tx.wait();
+                document.getElementById('depositStatus').innerHTML = 
+                    '<p class="success">Deposit successful!</p>';
+                await updateUI();
+            } catch (error) {
+                document.getElementById('depositStatus').innerHTML = 
+                    `<p class="error">Deposit failed: ${error.message}</p>`;
+            }
+        }
+
+        async function requestWithdrawal(amount) {
+            try {
+                const tx = await contract.requestWithdrawal(
+                    ethers.utils.parseUnits(amount.toString(), 6)
+                );
+                document.getElementById('withdrawStatus').innerHTML = 
+                    '<p class="success">Withdrawal request submitted. Waiting for confirmation...</p>';
+                await tx.wait();
+                document.getElementById('withdrawStatus').innerHTML = 
+                    '<p class="success">Withdrawal request successful!</p>';
+                await updateUI();
+            } catch (error) {
+                document.getElementById('withdrawStatus').innerHTML = 
+                    `<p class="error">Withdrawal request failed: ${error.message}</p>`;
+            }
+        }
+
+        async function withdraw() {
+            try {
+                const tx = await contract.withdraw();
+                document.getElementById('withdrawStatus').innerHTML = 
+                    '<p class="success">Withdrawal submitted. Waiting for confirmation...</p>';
+                await tx.wait();
+                document.getElementById('withdrawStatus').innerHTML = 
+                    '<p class="success">Withdrawal successful!</p>';
+                await updateUI();
+            } catch (error) {
+                document.getElementById('withdrawStatus').innerHTML = 
+                    `<p class="error">Withdrawal failed: ${error.message}</p>`;
+            }
+        }
+
+        async function getReferralCode() {
+            try {
+                const code = await contract.getReferralCode();
+                return code.toString();
+            } catch (error) {
+                console.error("Error getting referral code:", error);
+                return "-";
+            }
+        }
+
+        // Event Listeners Setup
+        function setupEventListeners() {
+            // Contract Events
+            contract.on("Deposit", async (user, amount, event) => {
+                if (user === userAddress) {
+                    await updateUI();
+                }
+            });
+
+            contract.on("Withdrawal", async (user, amount, event) => {
+                if (user === userAddress) {
+                    await updateUI();
+                }
+            });
+
+            contract.on("APRUpdated", async (newAPR, event) => {
+                await updateAPR();
+            });
+
+            // UI Button Events
+            document.getElementById('connectWallet').addEventListener('click', initializeWeb3);
+
+            document.getElementById('depositButton').addEventListener('click', async () => {
+                const amount = document.getElementById('depositAmount').value;
+                const referralCode = document.getElementById('referralCodeInput').value;
+                if (amount > 0) {
+                    await depositFunds(amount, referralCode);
+                }
+            });
+
+            document.getElementById('requestWithdrawButton').addEventListener('click', async () => {
+                const amount = document.getElementById('withdrawAmount').value;
+                if (amount > 0) {
+                    await requestWithdrawal(amount);
+                }
+            });
+
+            document.getElementById('withdrawButton').addEventListener('click', withdraw);
+
+            document.getElementById('copyReferralCode').addEventListener('click', async () => {
+                const code = document.getElementById('referralCode').textContent;
+                if (code !== "-") {
+                    await navigator.clipboard.writeText(code);
+                    alert("Referral code copied to clipboard!");
+                }
+            });
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            document.getElementById('connectWallet').click();
+        });
+    </script>
+</body>
+</html>
