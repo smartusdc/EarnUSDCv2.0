@@ -321,6 +321,25 @@ let signer;
 let contract;
 let userAddress;
 
+    // ここに新しいコードを追加（DOMContentLoadedイベントリスナー）
+    window.addEventListener('DOMContentLoaded', async () => {
+        // ethers.jsが読み込まれているか確認
+        if (typeof ethers === 'undefined') {
+            console.error('ethers.js ライブラリが読み込まれていません');
+            document.getElementById('walletStatus').innerHTML = 
+                '<p class="error">ethers.js ライブラリの読み込みに失敗しました</p>';
+            return;
+        }
+
+        const connectWalletBtn = document.getElementById('connectWallet');
+        if (connectWalletBtn) {
+            connectWalletBtn.addEventListener('click', async () => {
+                console.log("Connect wallet button clicked");
+                await initializeWeb3();
+            });
+        }
+    });
+
 // Initialize Web3 and Contract
 async function initializeWeb3() {
     try {
