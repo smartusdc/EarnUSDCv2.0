@@ -107,85 +107,57 @@
         // Configuration
         const contractAddress = "0x9cf81A1814D452D4f5308aA38D128ce5CAADdDE4";
         const contractABI = [
-    {
-        "inputs": [{"internalType": "address","name": "_usdcTokenAddress","type": "address"}],
-        "stateMutability": "nonpayable",
-        "type": "constructor"
-    },
-    {
-        "inputs": [
-            {"internalType": "uint256","name": "amount","type": "uint256"},
-            {"internalType": "uint256","name": "referralCode","type": "uint256"}
-        ],
-        "name": "depositFunds",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [{"internalType": "uint256","name": "amount","type": "uint256"}],
-        "name": "requestWithdrawal",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "withdraw",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "generateReferralCode",
-        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "claimDepositReward",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "claimReferralReward",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "cancelWithdrawal",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [{"internalType": "address","name": "userAddress","type": "address"}],
-        "name": "calculateReward",
-        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "currentAPR",
-        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [{"internalType": "address","name": "","type": "address"}],
-        "name": "deposits",
-        "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    }
-];
+            {
+                "inputs": [{"internalType": "address","name": "_usdcTokenAddress","type": "address"}],
+                "stateMutability": "nonpayable",
+                "type": "constructor"
+            },
+            {
+                "inputs": [
+                    {"internalType": "uint256","name": "amount","type": "uint256"},
+                    {"internalType": "uint256","name": "referralCode","type": "uint256"}
+                ],
+                "name": "depositFunds",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "currentAPR",
+                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "address","name": "","type": "address"}],
+                "name": "deposits",
+                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "generateReferralCode",
+                "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [{"internalType": "uint256","name": "amount","type": "uint256"}],
+                "name": "requestWithdrawal",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "withdraw",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            }
+        ];
 
         // グローバル変数
         let web3;
@@ -197,17 +169,15 @@
             console.log('Initializing...'); // デバッグログ
             
             if (typeof window.ethereum !== 'undefined') {
-                // Web3インスタンスを作成
                 web3 = new Web3(window.ethereum);
                 contract = new web3.eth.Contract(contractABI, contractAddress);
 
-                // MetaMaskのアカウント変更監視
+                // MetaMaskのイベントリスナー
                 window.ethereum.on('accountsChanged', function (accounts) {
                     console.log('Account changed, reloading...');
                     window.location.reload();
                 });
 
-                // チェーン変更監視
                 window.ethereum.on('chainChanged', function (chainId) {
                     console.log('Network changed, reloading...');
                     window.location.reload();
@@ -265,7 +235,7 @@
             try {
                 const balance = await contract.methods.deposits(currentAccount).call();
                 document.getElementById('userBalance').textContent = 
-                    web3.utils.fromWei(balance, 'ether');
+                    (balance / 1e6).toString(); // USDC has 6 decimals
             } catch (error) {
                 console.error("Error updating balance:", error);
             }
@@ -276,7 +246,7 @@
             try {
                 const apr = await contract.methods.currentAPR().call();
                 document.getElementById('currentAPR').textContent = 
-                    web3.utils.fromWei(apr, 'ether');
+                    (apr / 100).toString(); // Convert basis points to percentage
             } catch (error) {
                 console.error("Error updating APR:", error);
             }
@@ -285,26 +255,47 @@
         // リファラルコード更新
         async function updateReferralCode() {
             try {
-                const code = await contract.methods.generateReferralCode().call({
-                    from: currentAccount
-                });
-                document.getElementById('referralCode').textContent = code;
+                const code = await contract.methods.getUserReferralCode(currentAccount).call();
+                if (code === '0') {
+                    const tx = await contract.methods.generateReferralCode()
+                        .send({ from: currentAccount });
+                    const newCode = await contract.methods.getUserReferralCode(currentAccount).call();
+                    document.getElementById('referralCode').textContent = newCode;
+                } else {
+                    document.getElementById('referralCode').textContent = code;
+                }
             } catch (error) {
                 console.error("Error updating referral code:", error);
+                document.getElementById('referralCode').textContent = "-";
             }
         }
 
         // デポジット実行
-        async function depositFunds(amount, referralCode) {
+        async function depositFunds(amount, referralCode = '0') {
             try {
-                const amountWei = web3.utils.toWei(amount.toString(), 'ether');
-                await contract.methods.depositFunds(amountWei, referralCode)
-                    .send({ from: currentAccount });
+                // Convert amount to USDC units (6 decimals)
+                const amountInUSDC = (amount * 1e6).toString();
+                
+                // Get gas estimate
+                const gasEstimate = await contract.methods.depositFunds(amountInUSDC, referralCode)
+                    .estimateGas({ from: currentAccount });
+                
+                // Get gas price
+                const gasPrice = await web3.eth.getGasPrice();
+
+                // Execute transaction
+                const tx = await contract.methods.depositFunds(amountInUSDC, referralCode)
+                    .send({
+                        from: currentAccount,
+                        gas: Math.round(gasEstimate * 1.2), // 20% buffer
+                        gasPrice: gasPrice
+                    });
                 
                 document.getElementById('depositStatus').innerHTML = 
                     '<p class="success">入金が完了しました</p>';
                 await updateUI();
             } catch (error) {
+                console.error('Deposit error:', error);
                 document.getElementById('depositStatus').innerHTML = 
                     `<p class="error">入金に失敗しました: ${error.message}</p>`;
             }
@@ -313,8 +304,8 @@
         // 引き出しリクエスト
         async function requestWithdrawal(amount) {
             try {
-                const amountWei = web3.utils.toWei(amount.toString(), 'ether');
-                await contract.methods.requestWithdrawal(amountWei)
+                const amountInUSDC = (amount * 1e6).toString();
+                await contract.methods.requestWithdrawal(amountInUSDC)
                     .send({ from: currentAccount });
                 
                 document.getElementById('withdrawStatus').innerHTML = 
@@ -345,10 +336,15 @@
         function setupEventListeners() {
             document.getElementById('depositButton').addEventListener('click', async () => {
                 const amount = document.getElementById('depositAmount').value;
-                const referralCode = document.getElementById('referralCodeInput').value;
-                if (amount > 0) {
-                    await depositFunds(amount, referralCode);
+                const referralCode = document.getElementById('referralCodeInput').value || '0';
+                
+                if (amount <= 0) {
+                    document.getElementById('depositStatus').innerHTML = 
+                        '<p class="error">有効な金額を入力してください</p>';
+                    return;
                 }
+                
+                await depositFunds(amount, referralCode);
             });
 
             document.getElementById('requestWithdrawButton').addEventListener('click', async () => {
@@ -371,8 +367,11 @@
 
         // 初期化実行
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM Content Loaded'); // デバッグログ
             const connectButton = document.getElementById('connectWallet');
-            connectButton.addEventListener('click', connectWallet);
+            if (connectButton) {
+                connectButton.addEventListener('click', connectWallet);
+            }
             init();
         });
     </script>
