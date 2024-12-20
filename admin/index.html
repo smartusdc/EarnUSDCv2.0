@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USDC Earn Admin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .box {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-box h3 {
+            margin: 0 0 10px 0;
+            color: #666;
+        }
+        .stat-box .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+        }
+        .alert {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="box">
+            <h1>USDC Earn 管理画面</h1>
+            <button id="connectWallet">ウォレット接続</button>
+            <span id="walletInfo"></span>
+        </div>
+
+        <div id="adminPanel" class="hidden">
+            <div class="box">
+                <h2>システム概要</h2>
+                <div class="grid">
+                    <div class="stat-box">
+                        <h3>USDC残高</h3>
+                        <div class="value" id="usdcBalance">-</div>
+                    </div>
+                    <div class="stat-box">
+                        <h3>総預金額</h3>
+                        <div class="value" id="totalDeposits">-</div>
+                    </div>
+                    <div class="stat-box">
+                        <h3>現在のAPR</h3>
+                        <div class="value" id="currentAPR">-</div>
+                    </div>
+                    <div class="stat-box">
+                        <h3>引き出し状態</h3>
+                        <div class="value" id="withdrawalStatus">-</div>
+                    </div>
+                </div>
+                <button onclick="refreshStats()">更新</button>
+            </div>
+
+            <div class="box">
+                <h2>設定</h2>
+                <div class="input-group">
+                    <label>APR設定 (%)</label>
+                    <input type="number" id="newAPR" min="0" max="100" step="0.1">
+                    <button onclick="updateAPR()">APR更新</button>
+                </div>
+
+                <div class="input-group">
+                    <label>リファラル報酬率 (%)</label>
+                    <div>
+                        紹介者: <input type="number" id="referrerRate" min="0" max="50" step="0.1">
+                        被紹介者: <input type="number" id="referredRate" min="0" max="50" step="0.1">
+                    </div>
+                    <button onclick="updateReferralRates()">報酬率更新</button>
+                </div>
+
+                <div class="input-group">
+                    <label>引き出し制御</label>
+                    <button id="withdrawalToggle" onclick="toggleWithdrawal()">引き出し停止/再開</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.5.2/dist/web3.min.js"></script>
+    <script>
+        // コントラクト設定
+        const CONTRACT_ADDRESS = '0xYourContractAddress';
+        const CONTRACT_ABI = [
+            {"inputs":[{"internalType":"address","name":"_usdcTokenAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},
+            {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"currentAPR","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_newAPR","type":"uint256"}],"name":"updateAPR","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"_referrerRate","type":"uint256"},{"internalType":"uint256","name":"_referredRate","type":"uint256"}],"name":"updateReferralRewardRates","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"toggleWithdrawalPause","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"withdrawalPaused","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"usdcToken","outputs":[{"internalType":"contract IERC20","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+        ];
+
+        // USDC ABI (必要な部分のみ)
+        const USDC_ABI = [
+            {"constant":true,"inputs":[{"name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"}
+        ];
+
+        let web3;
+        let contract;
+        let currentAccount;
+        let isOwner = false;
+
+        // 初期化
+        async function init() {
+            if (typeof window.ethereum !== 'undefined') {
+                web3 = new Web3(window.ethereum);
+                contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+
+                // MetaMaskのアカウント変更監視
+                ethereum.on('accountsChanged', function (accounts) {
+                    location.reload();
+                });
+
+                // 接続済みの場合は自動的に接続
+                const accounts = await web3.eth.getAccounts();
+                if (accounts.length > 0) {
+                    await connectWallet();
+                }
+            } else {
+                alert('MetaMaskをインストールしてください');
+            }
+        }
+
+        // ウォレット接続
+        async function connectWallet() {
+            try {
+                const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                currentAccount = accounts[0];
+                
+                // オーナー確認
+                const owner = await contract.methods.owner().call();
+                isOwner = owner.toLowerCase() === currentAccount.toLowerCase();
+
+                // UI更新
+                document.getElementById('walletInfo').textContent = 
+                    `接続中: ${currentAccount.substring(0,6)}...${currentAccount.substring(38)} ${isOwner ? '(オーナー)' : ''}`;
+                
+                if (isOwner) {
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                    await refreshStats();
+                } else {
+                    alert('このアドレスには管理者権限がありません');
+                }
+            } catch (error) {
+                console.error(error);
+                alert('ウォレット接続に失敗しました');
+            }
+        }
+
+        // 統計情報更新
+        async function refreshStats() {
+            try {
+                // USDC残高取得
+                const usdcAddress = await contract.methods.usdcToken().call();
+                const usdcContract = new web3.eth.Contract(USDC_ABI, usdcAddress);
+                const balance = await usdcContract.methods.balanceOf(CONTRACT_ADDRESS).call();
+                
+                // その他の情報取得
+                const apr = await contract.methods.currentAPR().call();
+                const withdrawalPaused = await contract.methods.withdrawalPaused().call();
+
+                // UI更新
+                document.getElementById('usdcBalance').textContent = formatUSDC(balance);
+                document.getElementById('currentAPR').textContent = `${apr}%`;
+                document.getElementById('withdrawalStatus').textContent = withdrawalPaused ? '停止中' : '有効';
+                
+                // 現在の設定値をフォームに設定
+                document.getElementById('newAPR').value = apr;
+            } catch (error) {
+                console.error(error);
+                alert('統計情報の取得に失敗しました');
+            }
+        }
+
+        // APR更新
+        async function updateAPR() {
+            if (!isOwner) return;
+            const newAPR = document.getElementById('newAPR').value;
+            
+            try {
+                await contract.methods.updateAPR(newAPR).send({from: currentAccount});
+                alert('APRを更新しました');
+                refreshStats();
+            } catch (error) {
+                console.error(error);
+                alert('APRの更新に失敗しました');
+            }
+        }
+
+        // リファラル報酬率更新
+        async function updateReferralRates() {
+            if (!isOwner) return;
+            const referrerRate = document.getElementById('referrerRate').value;
+            const referredRate = document.getElementById('referredRate').value;
+            
+            try {
+                await contract.methods.updateReferralRewardRates(referrerRate, referredRate)
+                    .send({from: currentAccount});
+                alert('リファラル報酬率を更新しました');
+            } catch (error) {
+                console.error(error);
+                alert('リファラル報酬率の更新に失敗しました');
+            }
+        }
+
+        // 引き出し制御
+        async function toggleWithdrawal() {
+            if (!isOwner) return;
+            
+            try {
+                await contract.methods.toggleWithdrawalPause().send({from: currentAccount});
+                alert('引き出し設定を切り替えました');
+                refreshStats();
+            } catch (error) {
+                console.error(error);
+                alert('引き出し設定の切り替えに失敗しました');
+            }
+        }
+
+        // USDC金額フォーマット（6桁精度）
+        function formatUSDC(amount) {
+            return (amount / 1e6).toFixed(2);
+        }
+
+        // 初期化実行
+        init();
+    </script>
+</body>
+</html>
