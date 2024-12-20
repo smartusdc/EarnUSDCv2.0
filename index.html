@@ -522,9 +522,18 @@ async function initializeWeb3() {
         }
 
         // Initialize on page load
-        window.addEventListener('load', () => {
-            document.getElementById('connectWallet').click();
+window.addEventListener('DOMContentLoaded', () => {
+    const connectWalletBtn = document.getElementById('connectWallet');
+    if (connectWalletBtn) {
+        // 初期接続試行
+        connectWalletBtn.addEventListener('click', async () => {
+            console.log("Connect wallet button clicked"); // デバッグログ
+            await initializeWeb3();
         });
+        // 自動接続を試みる
+        initializeWeb3().catch(console.error);
+    }
+});
     </script>
 </body>
 </html>
