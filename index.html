@@ -312,36 +312,69 @@
     }
 ];
         
-        let provider;
-        let signer;
-        let contract;
-        let userAddress;
+let provider;
+let signer;
+let contract;
+let userAddress;
 
-        // Initialize Web3 and Contract
-        async function initializeWeb3() {
-            if (typeof window.ethereum !== 'undefined') {
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                try {
-                    await provider.send("eth_requestAccounts", []);
-                    signer = provider.getSigner();
-                    userAddress = await signer.getAddress();
-                    contract = new ethers.Contract(contractAddress, contractABI, signer);
-                    
-                    document.getElementById('walletStatus').innerHTML = 
-                        `<p class="success">Connected: ${userAddress.substring(0,6)}...${userAddress.substring(38)}</p>`;
-                    
-                    // Initialize UI
-                    await updateUI();
-                    setupEventListeners();
-                } catch (error) {
-                    document.getElementById('walletStatus').innerHTML = 
-                        `<p class="error">Connection failed: ${error.message}</p>`;
-                }
-            } else {
-                document.getElementById('walletStatus').innerHTML = 
-                    '<p class="error">Please install MetaMask</p>';
-            }
+// Initialize Web3 and Contract
+async function initializeWeb3() {
+    try {
+        console.log("Initializing Web3..."); // デバッグログ
+
+        // MetaMaskが利用可能かチェック
+        if (typeof window.ethereum === 'undefined') {
+            document.getElementById('walletStatus').innerHTML = 
+                '<p class="error">MetaMaskをインストールしてください</p>';
+            return;
         }
+
+        // MetaMaskのプロバイダーを取得
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        
+        // ウォレット接続を要求
+        console.log("Requesting accounts..."); // デバッグログ
+        const accounts = await window.ethereum.request({ 
+            method: 'eth_requestAccounts' 
+        });
+        
+        if (!accounts || accounts.length === 0) {
+            throw new Error('ウォレットに接続できませんでした');
+        }
+
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+        console.log("Connected address:", userAddress); // デバッグログ
+
+        // コントラクトのインスタンス化
+        contract = new ethers.Contract(contractAddress, contractABI, signer);
+        
+        // 接続成功のメッセージを表示
+        document.getElementById('walletStatus').innerHTML = 
+            `<p class="success">接続成功: ${userAddress.substring(0,6)}...${userAddress.substring(38)}</p>`;
+        
+        // UI更新とイベントリスナーの設定
+        await updateUI();
+        setupEventListeners();
+
+        // MetaMaskのアカウント変更イベントをリッスン
+        window.ethereum.on('accountsChanged', function (accounts) {
+            console.log("Account changed, reloading..."); // デバッグログ
+            window.location.reload();
+        });
+
+        // チェーン変更イベントをリッスン
+        window.ethereum.on('chainChanged', function (chainId) {
+            console.log("Network changed, reloading..."); // デバッグログ
+            window.location.reload();
+        });
+
+    } catch (error) {
+        console.error('Connection error:', error); // デバッグログ
+        document.getElementById('walletStatus').innerHTML = 
+            `<p class="error">接続エラー: ${error.message}</p>`;
+    }
+}
 
         // UI Update Functions
         async function updateUI() {
